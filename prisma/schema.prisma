@@ -1,0 +1,502 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ====================
+// Model: User
+// ====================
+model User {
+  id                    String    @id @default(uuid())
+  firebaseUid           String    @unique
+  email                 String    @unique
+  emailVerified         Boolean   @default(false)
+  displayName           String?
+  photoUrl              String?
+  phoneNumber           String?
+  currency              String    @default("IDR")
+  locale                String    @default("id-ID")
+  timezone              String    @default("Asia/Jakarta")
+  dateFormat            String    @default("DD/MM/YYYY")
+  isPremium             Boolean   @default(false)
+  premiumExpiresAt      DateTime?
+  onboardingCompleted   Boolean   @default(false)
+  lastLoginAt           DateTime?
+  settings              Json?
+  isDeleted             Boolean   @default(false)
+  deletedAt             DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  // Relations
+  accounts              Account[]
+  transactions          Transaction[]
+  categories            Category[]
+  savingPlans           SavingPlan[]
+  budgets               Budget[]
+  investments           Investment[]
+  investmentTransactions InvestmentTransaction[]
+  recurringTransactions RecurringTransaction[]
+  subscriptions         Subscription[]
+  debts                 Debt[]
+  debtPayments          DebtPayment[]
+  notifications         Notification[]
+  sessions              UserSession[]
+  netWorthHistory       NetWorthHistory[]
+  portfolioHistory      PortfolioHistory[]
+  invoices              Invoice[]
+}
+
+// ====================
+// Model: Account
+// ====================
+model Account {
+  id                String    @id @default(uuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id])
+  name              String
+  type              String    // bank | ewallet | cash | investment | credit_card | loan
+  subtype           String?
+  institutionName   String?
+  accountNumber     String?
+  balance           Float     @default(0)
+  availableBalance  Float?
+  creditLimit       Float?
+  currency          String    @default("IDR")
+  color             String
+  icon              String
+  includeInNetWorth Boolean   @default(true)
+  isActive          Boolean   @default(true)
+  isDeleted         Boolean   @default(false)
+  deletedAt         DateTime?
+  lastSyncedAt      DateTime?
+  metadata          Json?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  transactions              Transaction[]       @relation("AccountTransactions")
+  toTransactions            Transaction[]       @relation("ToAccountTransactions")
+  recurringTransactions     RecurringTransaction[]
+  investmentTransactions    InvestmentTransaction[]
+  linkedDebts               Debt[]
+  linkedSavingPlans         SavingPlan[]
+}
+
+// ====================
+// Model: Category
+// ====================
+model Category {
+  id                String    @id @default(uuid())
+  userId            String?
+  user              User?     @relation(fields: [userId], references: [id])
+  name              String
+  type              String    // income | expense | transfer
+  parentCategoryId  String?
+  icon              String
+  color             String
+  isDefault         Boolean   @default(false)
+  isDeleted         Boolean   @default(false)
+  deletedAt         DateTime?
+  sortOrder         Int       @default(0)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  transactions          Transaction[]
+  recurringTransactions RecurringTransaction[]
+  budgets               Budget[]
+  subscriptions         Subscription[]
+}
+
+// ====================
+// Model: Transaction
+// ====================
+model Transaction {
+  id                    String    @id @default(uuid())
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id])
+  accountId             String
+  account               Account   @relation("AccountTransactions", fields: [accountId], references: [id])
+  toAccountId           String?
+  toAccount             Account?  @relation("ToAccountTransactions", fields: [toAccountId], references: [id])
+  categoryId            String?
+  category              Category? @relation(fields: [categoryId], references: [id])
+  type                  String    // income | expense | transfer
+  status                String    // pending | completed | failed | cancelled | refunded
+  amount                Float
+  fee                   Float?
+  tax                   Float?
+  description           String?
+  memo                  String?
+  merchantName          String?
+  merchantId            String?
+  transactionDate       DateTime
+  postingDate           DateTime?
+  referenceId           String?
+  externalId            String?
+  receiptUrl            String?
+  receiptData           String?
+  location              Json?
+  tags                  String[]
+  notes                 String?
+  isRecurring           Boolean   @default(false)
+  recurringTransactionId String?
+  isSplit               Boolean   @default(false)
+  splitDetails          Json?
+  isReconciled          Boolean   @default(false)
+  reconciledAt          DateTime?
+  isDeleted             Boolean   @default(false)
+  deletedAt             DateTime?
+  metadata              Json?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  debtPayments          DebtPayment[]
+}
+
+// ====================
+// Model: RecurringTransaction
+// ====================
+model RecurringTransaction {
+  id                String    @id @default(uuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id])
+  accountId         String
+  account           Account   @relation(fields: [accountId], references: [id])
+  categoryId        String?
+  category          Category? @relation(fields: [categoryId], references: [id])
+  name              String
+  type              String    // income | expense
+  amount            Float
+  description       String?
+  frequency         String    // daily | weekly | biweekly | monthly | bimonthly | quarterly | yearly
+  interval          Int       @default(1)
+  startDate         DateTime
+  endDate           DateTime?
+  lastOccurrence    DateTime?
+  nextOccurrence    DateTime
+  dayOfMonth        Int?
+  dayOfWeek         Int?
+  isActive          Boolean   @default(true)
+  isDeleted         Boolean   @default(false)
+  deletedAt         DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+// ====================
+// Model: SavingPlan
+// ====================
+model SavingPlan {
+  id                String    @id @default(uuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id])
+  name              String
+  description       String?
+  targetAmount      Float
+  currentAmount     Float     @default(0)
+  deadline          DateTime?
+  icon              String
+  color             String
+  priority          Int       @default(0)
+  autoSave          Boolean   @default(false)
+  autoSaveAmount    Float?
+  autoSaveFrequency String?   // weekly | biweekly | monthly
+  autoSaveDay       Int?
+  linkedAccountId   String?
+  linkedAccount     Account?  @relation(fields: [linkedAccountId], references: [id])
+  milestones        Json?
+  isCompleted       Boolean   @default(false)
+  completedAt       DateTime?
+  isDeleted         Boolean   @default(false)
+  deletedAt         DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+// ====================
+// Model: Budget
+// ====================
+model Budget {
+  id                String    @id @default(uuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id])
+  categoryId        String?
+  category          Category? @relation(fields: [categoryId], references: [id])
+  name              String
+  amount            Float
+  period            String    // daily | weekly | monthly | yearly
+  month             Int?
+  year              Int?
+  week              Int?
+  rollover          Boolean   @default(false)
+  rolloverAmount    Float     @default(0)
+  alertThreshold    Float     @default(80)
+  alertEnabled      Boolean   @default(true)
+  isDeleted         Boolean   @default(false)
+  deletedAt         DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+// ====================
+// Model: Investment
+// ====================
+model Investment {
+  id                          String    @id @default(uuid())
+  userId                      String
+  user                        User      @relation(fields: [userId], references: [id])
+  accountId                   String?
+  name                        String
+  tickerSymbol                String?
+  type                        String    // stock | mutual_fund | etf | gold | bond | crypto | real_estate | other
+  subType                     String?
+  exchange                    String?
+  currency                    String    @default("IDR")
+  currentPrice                Float
+  purchasePrice               Float
+  quantity                    Float
+  totalValue                  Float
+  costBasis                   Float
+  unrealizedGainLoss          Float?
+  unrealizedGainLossPercentage Float?
+  purchaseDate                DateTime?
+  lastUpdatedPrice            DateTime?
+  icon                        String
+  dividendYield               Float?
+  dividendIncome              Float     @default(0)
+  isDeleted                   Boolean   @default(false)
+  deletedAt                   DateTime?
+  metadata                    Json?
+  createdAt                   DateTime  @default(now())
+  updatedAt                   DateTime  @updatedAt
+
+  transactions InvestmentTransaction[]
+}
+
+// ====================
+// Model: InvestmentTransaction
+// ====================
+model InvestmentTransaction {
+  id              String     @id @default(uuid())
+  userId          String
+  user            User       @relation(fields: [userId], references: [id])
+  investmentId    String
+  investment      Investment @relation(fields: [investmentId], references: [id])
+  accountId       String?
+  account         Account?   @relation(fields: [accountId], references: [id])
+  type            String     // buy | sell | dividend | split | contribution | withdrawal
+  quantity        Float
+  price           Float
+  amount          Float
+  fee             Float?
+  tax             Float?
+  transactionDate DateTime
+  notes           String?
+  referenceId     String?
+  isDeleted       Boolean    @default(false)
+  deletedAt       DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+}
+
+// ====================
+// Model: Subscription
+// ====================
+model Subscription {
+  id              String    @id @default(uuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  name            String
+  provider        String?
+  amount          Float
+  currency        String    @default("IDR")
+  billingDate     Int
+  billingPeriod   String    // monthly | quarterly | yearly
+  categoryId      String?
+  category        Category? @relation(fields: [categoryId], references: [id])
+  icon            String
+  nextBillingDate DateTime
+  lastPaymentDate DateTime?
+  isActive        Boolean   @default(true)
+  isPaused        Boolean   @default(false)
+  pauseUntil      DateTime?
+  isDeleted       Boolean   @default(false)
+  deletedAt       DateTime?
+  metadata        Json?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+// ====================
+// Model: Debt
+// ====================
+model Debt {
+  id              String    @id @default(uuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  name            String
+  type            String    // credit_card | personal_loan | mortgage | auto_loan | student_loan | other
+  lenderName      String?
+  originalAmount  Float
+  currentBalance  Float
+  interestRate    Float
+  minimumPayment  Float?
+  dueDate         Int
+  startDate       DateTime?
+  endDate         DateTime?
+  linkedAccountId String?
+  linkedAccount   Account?  @relation(fields: [linkedAccountId], references: [id])
+  icon            String
+  color             String
+  isPaidOff       Boolean   @default(false)
+  paidOffAt       DateTime?
+  isDeleted       Boolean   @default(false)
+  deletedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  payments DebtPayment[]
+}
+
+// ====================
+// Model: DebtPayment
+// ====================
+model DebtPayment {
+  id              String       @id @default(uuid())
+  userId          String
+  user            User         @relation(fields: [userId], references: [id])
+  debtId          String
+  debt            Debt         @relation(fields: [debtId], references: [id])
+  amount          Float
+  principalAmount Float
+  interestAmount  Float
+  paymentDate     DateTime
+  transactionId   String?
+  transaction     Transaction? @relation(fields: [transactionId], references: [id])
+  notes           String?
+  isDeleted       Boolean      @default(false)
+  deletedAt       DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}
+
+// ====================
+// Model: Notification
+// ====================
+model Notification {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  type        String    // transaction | budget | subscription | saving_plan | investment | debt | system | marketing
+  title       String
+  body        String
+  data        Json?
+  isRead      Boolean   @default(false)
+  readAt      DateTime?
+  isArchived  Boolean   @default(false)
+  archivedAt  DateTime?
+  actionUrl   String?
+  createdAt   DateTime  @default(now())
+}
+
+// ====================
+// Model: UserSession
+// ====================
+model UserSession {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  deviceId    String?
+  deviceName  String?
+  deviceType  String?
+  ipAddress   String?
+  location    String?
+  userAgent   String?
+  expiresAt   DateTime
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// ====================
+// Model: AdminSettings
+// ====================
+model AdminSettings {
+  id                    String   @id @default("global")
+  enableOnboarding      Boolean  @default(true)
+  onboardingSteps       String[]
+  enablePremiumFeatures Boolean  @default(true)
+  maintenanceMode       Boolean  @default(false)
+  maintenanceMessage    String?
+  latestAppVersion      String?
+  forceUpdateVersion    String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+// ====================
+// Model: NetWorthHistory
+// ====================
+model NetWorthHistory {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  value     Float
+  date      String   // YYYY-MM
+  createdAt DateTime @default(now())
+}
+
+// ====================
+// Model: PortfolioHistory
+// ====================
+model PortfolioHistory {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  value     Float
+  date      String   // YYYY-MM-DD
+  createdAt DateTime @default(now())
+}
+
+// ====================
+// Model: Invoice
+// ====================
+model Invoice {
+  id              String        @id @default(uuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id])
+  invoiceNumber   String        @unique
+  client          String
+  email           String
+  project         String
+  date            DateTime
+  dueDate         DateTime
+  status          String        // Paid | Pending | Overdue
+  tax             Float         @default(0)
+  discount        Float         @default(0)
+  notes           String?
+  isDeleted       Boolean       @default(false)
+  deletedAt       DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  items           InvoiceItem[]
+}
+
+// ====================
+// Model: InvoiceItem
+// ====================
+model InvoiceItem {
+  id              String    @id @default(uuid())
+  invoiceId       String
+  invoice         Invoice   @relation(fields: [invoiceId], references: [id])
+  description     String
+  quantity        Int
+  price           Float
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}

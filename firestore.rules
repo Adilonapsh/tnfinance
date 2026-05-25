@@ -1,0 +1,159 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // DEVELOPMENT ONLY: Allow all access (remove in production)
+    // REMOVED FOR SECURITY: Strict rules below are now enforced.
+
+    // Primitives
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(userId) { return request.auth.uid == userId; }
+    // Only allow verified emails if we were fully strict. For this preview app, we'll just check isSignedIn()
+
+    function isValidId(id) { 
+      // Basic check for document IDs
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+
+    // Validation Helpers
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email']) 
+        && data.uid is string && data.uid.size() > 0 && data.uid.size() <= 128
+        && data.email is string && data.email.size() <= 256;
+    }
+
+    function isValidTransaction(data) {
+      return data.keys().hasAll(['userId', 'amount', 'type', 'category', 'date', 'status', 'createdAt', 'updatedAt'])
+        && data.userId is string && data.userId == request.auth.uid
+        && data.amount is number
+        && data.type is string && data.type.size() <= 20
+        && data.category is string && data.category.size() <= 100
+        && data.date is string && data.date.size() <= 100
+        && data.status is string && data.status.size() <= 20
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidSavingPlan(data) {
+      return data.keys().hasAll(['userId', 'name', 'targetAmount', 'currentAmount', 'createdAt', 'updatedAt'])
+        && data.userId is string && data.userId == request.auth.uid
+        && data.name is string && data.name.size() <= 200
+        && data.targetAmount is number
+        && data.currentAmount is number
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidInvestment(data) {
+      return data.keys().hasAll(['userId', 'symbol', 'shares', 'purchasePrice', 'currentPrice', 'createdAt', 'updatedAt'])
+        && data.userId is string && data.userId == request.auth.uid
+        && data.symbol is string && data.symbol.size() <= 20
+        && data.shares is number
+        && data.purchasePrice is number
+        && data.currentPrice is number
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidSubscription(data) {
+      return data.keys().hasAll(['userId', 'name', 'amount', 'billingCycle', 'nextBillingDate', 'status', 'createdAt', 'updatedAt'])
+        && data.userId is string && data.userId == request.auth.uid
+        && data.name is string && data.name.size() <= 200
+        && data.amount is number
+        && data.billingCycle is string && data.billingCycle.size() <= 20
+        && data.nextBillingDate is string && data.nextBillingDate.size() <= 100
+        && data.status is string && data.status.size() <= 20
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && isOwner(userId) && isValidId(userId);
+      allow create: if isSignedIn() && isOwner(userId) && isValidId(userId)
+                    && isValidUser(incoming())
+                    && incoming().uid == userId;
+      allow update: if isSignedIn() && isOwner(userId) && isValidId(userId)
+                    && isValidUser(incoming())
+                    && incoming().uid == existing().uid;
+      allow delete: if false; 
+    }
+
+    match /transactions/{transactionId} {
+      allow get: if isSignedIn() && isOwner(existing().userId) && isValidId(transactionId);
+      allow list: if isSignedIn() && isOwner(existing().userId);
+      allow create: if isSignedIn() && isValidId(transactionId) && isValidTransaction(incoming());
+      allow update: if isSignedIn() && isOwner(existing().userId) && isValidId(transactionId)
+                    && isValidTransaction(incoming())
+                    && incoming().userId == existing().userId;
+      allow delete: if isSignedIn() && isOwner(existing().userId) && isValidId(transactionId);
+    }
+
+    match /saving_plans/{planId} {
+      allow get: if isSignedIn() && isOwner(existing().userId) && isValidId(planId);
+      allow list: if isSignedIn() && isOwner(existing().userId);
+      allow create: if isSignedIn() && isValidId(planId) && isValidSavingPlan(incoming());
+      allow update: if isSignedIn() && isOwner(existing().userId) && isValidId(planId)
+                    && isValidSavingPlan(incoming())
+                    && incoming().userId == existing().userId;
+      allow delete: if isSignedIn() && isOwner(existing().userId) && isValidId(planId);
+    }
+
+    match /investments/{investmentId} {
+      allow get: if isSignedIn() && isOwner(existing().userId) && isValidId(investmentId);
+      allow list: if isSignedIn() && isOwner(existing().userId);
+      allow create: if isSignedIn() && isValidId(investmentId) && isValidInvestment(incoming());
+      allow update: if isSignedIn() && isOwner(existing().userId) && isValidId(investmentId)
+                    && isValidInvestment(incoming())
+                    && incoming().userId == existing().userId;
+      allow delete: if isSignedIn() && isOwner(existing().userId) && isValidId(investmentId);
+    }
+
+    match /subscriptions/{subscriptionId} {
+      allow get: if isSignedIn() && isOwner(existing().userId) && isValidId(subscriptionId);
+      allow list: if isSignedIn() && isOwner(existing().userId);
+      allow create: if isSignedIn() && isValidId(subscriptionId) && isValidSubscription(incoming());
+      allow update: if isSignedIn() && isOwner(existing().userId) && isValidId(subscriptionId)
+                    && isValidSubscription(incoming())
+                    && incoming().userId == existing().userId;
+      allow delete: if isSignedIn() && isOwner(existing().userId) && isValidId(subscriptionId);
+    }
+
+    match /categories/{categoryId} {
+      allow read: if isSignedIn() && isOwner(existing().userId);
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
+      allow update, delete: if isSignedIn() && isOwner(existing().userId);
+    }
+
+    match /accounts/{accountId} {
+      allow read: if isSignedIn() && isOwner(existing().userId);
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
+      allow update, delete: if isSignedIn() && isOwner(existing().userId);
+    }
+
+    match /budgets/{budgetId} {
+      allow read: if isSignedIn() && isOwner(existing().userId);
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
+      allow update, delete: if isSignedIn() && isOwner(existing().userId);
+    }
+
+    match /net_worth_history/{docId} {
+      allow read: if isSignedIn() && isOwner(existing().userId);
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
+      allow update, delete: if isSignedIn() && isOwner(existing().userId);
+    }
+
+    match /portfolio_history/{docId} {
+      allow read: if isSignedIn() && isOwner(existing().userId);
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
+      allow update, delete: if isSignedIn() && isOwner(existing().userId);
+    }
+
+    match /admin_settings/{settingId} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}

@@ -9,18 +9,40 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@firebase/auth": "^1.13.1",
+    "@prisma/client": "6",
+    "date-fns": "^4.1.0",
+    "firebase": "^12.13.0",
+    "firebase-admin": "^13.10.0",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.7",
+    "lucide-react": "^1.16.0",
+    "motion": "^12.23.24",
     "next": "16.2.6",
+    "next-theme": "^0.1.5",
+    "next-themes": "^0.4.6",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "react-hook-form": "^7.75.0",
+    "react-hot-toast": "^2.6.0",
+    "recharts": "^3.8.1",
+    "shadcn": "^4.7.0",
+    "xlsx": "^0.18.5",
+    "zustand": "^5.0.13"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@types/node": "^25.8.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
-    "tailwindcss": "^4",
+    "prisma": "6",
+    "tailwindcss": "^4.3.0",
+    "ts-node": "^10.9.2",
     "typescript": "^5"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
   }
 }
